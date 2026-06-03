@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Best Remittance Quotes</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 20px;
+    }
+    .shell {
+      width: 100%;
+      max-width: 480px;
+      background: #fff;
+      border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+      min-height: 100vh;
+      padding: 0;
+      overflow: hidden;
+    }
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 32px 24px;
+      color: #fff;
+      text-align: center;
+    }
+    .header-title { font-size: 28px; font-weight: 800; margin-bottom: 8px; }
+    .header-subtitle { font-size: 13px; opacity: 0.95; font-weight: 500; }
+    .content { padding: 24px; }
+    .corridor {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      background: #f8f9fb;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      border: 1px solid #e8eaef;
+    }
+    .corridor-item {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+    }
+    .corridor-box-single {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #fff;
+      border: 1px solid #e0e3e8;
+      border-radius: 8px;
+      padding: 10px 14px;
+      width: 100%;
+    }
+    .corridor-box-select {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #fff;
+      border: 1px solid #e0e3e8;
+      border-radius: 8px;
+      padding: 8px 10px;
+      width: 100%;
+      position: relative;
+    }
+    .corridor-box-select::after {
+      content: '▼';
+      position: absolute;
+      right: 8px;
+      font-size: 10px;
+      color: #999;
+      pointer-events: none;
+    }
+    .corridor-flag {
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .corridor-display {
+      font-size: 16px;
+      font-weight: 700;
+      color: #111;
+    }
+    .corridor-arrow {
+      font-size: 18px;
+      color: #ccc;
+      flex-shrink: 0;
+    }
+    .corridor-select {
+      width: 100%;
+      font-size: 16px;
+      font-weight: 700;
+      color: #111;
+      background: transparent;
+      border: none;
+      outline: none;
+      cursor: pointer;
+      appearance: none;
+      padding: 0;
+      padding-right: 20px;
+    }
+    .corridor-select option {
+      font-size: 16px;
+      padding: 10px;
+    }
+    .input-card {
+      background: #f8f9fb;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 20px;
+      border: 1px solid #e8eaef;
+    }
+    .amount-input-wrapper {
+      display: flex;
+      align-items: center;
+      background: #fff;
+      border: 1px solid #e0e3e8;
+      border-radius: 8px;
+      padding: 12px 14px;
+      gap: 6px;
+    }
+    .amount-symbol {
+      font-size: 18px;
+      font-weight: 700;
+      color: #667eea;
+      flex-shrink: 0;
+    }
+    .amt-input-inline {
+      font-size: 18px;
+      font-weight: 700;
+      color: #111;
+      border: none;
+      outline: none;
+      background: transparent;
+      width: 100%;
+      padding: 0;
+    }
+    .amt-input-inline::placeholder {
+      color: #ccc;
+      font-weight: 500;
+    }
+    .amt-input-inline::-webkit-inner-spin-button,
+    .amt-input-inline::-webkit-outer-spin-button { -webkit-appearance: none; }
+    .go-btn {
+      width: 100%; margin-top: 16px; height: 48px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      border: none; border-radius: 12px;
+      font-size: 16px; font-weight: 600;
+      cursor: pointer; letter-spacing: 0.5px;
+      transition: all 0.3s;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+    .go-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4); }
+    .go-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .mid-rate-box {
+      background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+      border-radius: 12px;
+      padding: 10px 16px;
+      margin-top: 16px;
+      margin-bottom: 16px;
+      display: none;
+      align-items: center;
+      gap: 12px;
+    }
+    .rate-txt { font-size: 14px; font-weight: 600; color: #1b5e20; }
+    .rate-label { font-size: 11px; color: #2e7d32; }
+    .status-line {
+      font-size: 13px; color: #999;
+      text-align: center; padding: 12px 16px;
+      min-height: 20px;
+    }
+    .sec-title { font-size: 13px; font-weight: 700; color: #667eea; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; margin-top: 8px; }
+    .cards-wrap { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
+    .pcard {
+      background: #fff;
+      border-radius: 12px;
+      border: 2px solid #f0f2f5;
+      padding: 12px;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s;
+      cursor: pointer;
+    }
+    .pcard:hover { border-color: #667eea; box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+    .pcard.winner {
+      border: 2px solid #667eea;
+      background: linear-gradient(135deg, #f0f4ff 0%, #f8f7ff 100%);
+      box-shadow: 0 8px 24px rgba(102, 126, 234, 0.15);
+    }
+    .pcard.winner::before {
+      content: '★';
+      position: absolute; right: -8px; top: -8px;
+      font-size: 40px; color: #ffd700; opacity: 0.3;
+    }
+    .pcard-head {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;
+    }
+    .pcard-brand { display: flex; align-items: center; gap: 8px; }
+    .pdot {
+      width: 40px; height: 40px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .pname { font-size: 14px; font-weight: 600; color: #111; }
+    .best-tag {
+      background: #667eea; color: #fff;
+      font-size: 11px; font-weight: 600;
+      padding: 4px 10px; border-radius: 20px;
+    }
+    .est-tag {
+      background: #f0f2f5; color: #666;
+      font-size: 11px; font-weight: 500;
+      padding: 4px 10px; border-radius: 20px;
+    }
+    .pcard-body { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 8px; gap: 10px; }
+    .pcard-fees { flex: 1; }
+    .pcard-fees-lbl { font-size: 10px; color: #999; margin-bottom: 2px; }
+    .pcard-fees-val { font-size: 13px; font-weight: 600; color: #666; }
+    .pcard-total { text-align: right; flex: 1; }
+    .pcard-total-lbl { font-size: 10px; color: #999; margin-bottom: 2px; }
+    .pcard-total-val { font-size: 28px; font-weight: 800; color: #111; }
+    .pcard-total-val.green { color: #667eea; }
+    .pcard-save { font-size: 10px; color: #ef4444; font-weight: 600; margin-top: 2px; }
+    .pcard-action {
+      display: flex; gap: 8px;
+    }
+    .verify-btn {
+      flex: 1;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .verify-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); }
+    .verify-btn.winning-btn {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+    .verify-btn.winning-btn:hover { box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4); }
+    .skel {
+      background: #f0f0f0; border-radius: 8px;
+      animation: pulse 1.2s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .disclaimer {
+      background: #f8f9fb;
+      border-radius: 12px;
+      padding: 14px;
+      margin-top: 24px;
+      border-left: 4px solid #667eea;
+    }
+    .disclaimer-p {
+      font-size: 11px; color: #666; line-height: 1.6;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #999;
+    }
+    .empty-state-icon { font-size: 48px; margin-bottom: 12px; }
+    .empty-state-txt { font-size: 14px; font-weight: 600; }
+  </style>
+</head>
+<body>
+<div class="shell">
+  <div class="header">
+    <div class="header-title">Best Remittance Quotes</div>
+    <div class="header-subtitle">Compare and find best option for international money transfer</div>
+  </div>
+  
+  <div class="content">
+    <div class="corridor">
+      <div class="corridor-item">
+        <div class="corridor-box-single">
+          <span class="corridor-flag">🇮🇳</span>
+          <div class="corridor-display">INR</div>
+        </div>
+      </div>
+      <div class="corridor-arrow">→</div>
+      <div class="corridor-item">
+        <div class="corridor-box-select">
+          <span class="corridor-flag" id="flag-to">🇺🇸</span>
+          <select id="cur" class="corridor-select">
+            <option value="USD">USD</option>
+            <option value="GBP">GBP</option>
+            <option value="EUR">EUR</option>
+            <option value="AUD">AUD</option>
+            <option value="CAD">CAD</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="input-card">
+      <div class="amount-input-wrapper">
+        <span class="amount-symbol" id="amt-symbol">$</span>
+        <input class="amt-input-inline" type="number" id="amt" placeholder="Enter amount" min="1" />
+      </div>
+      <button class="go-btn" id="gobtn" onclick="run()">Compare Rates</button>
+    </div>
+
+    <div class="mid-rate-box" id="mrate">
+      <span class="rate-txt" id="g-rate-txt">—</span>
+      <span class="rate-label">Live rate</span>
+    </div>
+
+    <div class="status-line" id="st"></div>
+
+    <div id="results-section" style="display:none;">
+      <div class="sec-title">Available Quotes</div>
+      <div class="cards-wrap" id="cards"></div>
+      <div class="empty-state" id="empty-state" style="display:none;">
+        <div class="empty-state-icon">📊</div>
+        <div class="empty-state-txt">No rates available</div>
+      </div>
+      
+      <div class="disclaimer">
+        <p class="disclaimer-p"><strong>Disclaimer:</strong> Rates displayed are indicative and sourced from publicly available data and open-source APIs. These rates are for reference purposes only and should not be considered as financial advice or guarantees. Actual rates may vary. We make no claims on the accuracy or completeness of this information. Always verify rates directly with service providers before making transactions.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Production: Use Cloud Functions, Development: Use localhost
+  const PROXY = window.location.hostname === 'localhost' 
+    ? 'http://localhost:3001'
+    : 'https://us-central1-best-fx-quote.cloudfunctions.net';
+
+  const ZOLVE_CFG = {
+    USD: { markup: 0.0040, swift: 899 },
+    GBP: { markup: 0.0030, swift: 1499 },
+    EUR: { markup: 0.0030, swift: 1299 },
+    AUD: { markup: 0.0040, swift: 1299 },
+    CAD: { markup: 0.0040, swift: 1299 },
+    DEFAULT: { markup: 0.0100, swift: 1499 },
+  };
+
+  const ET_SLABS = [
+    { uptoINR: 1000000, pct: 0.017 },
+    { uptoINR: Infinity, pct: 0.010 },
+  ];
+
+  const PROVIDER_URLS = {
+    'Zolve': 'https://www.zolve.com',
+    'Wise': 'https://wise.com/send-money/',
+    'WSFX': 'https://www.wsfx.in/wsfx-student',
+    'BookMyForex': 'https://www.bookmyforex.com/forex/',
+    'EasyTransfer': 'https://easytransferapi.com',
+    'Flywire': 'https://www.flywire.com',
+  };
+
+  const DOTS = {
+    'Zolve':        { bg: '#667eea', color: '#fff', initials: 'ZO' },
+    'Wise':         { bg: '#1a73e8', color: '#fff', initials: 'WI' },
+    'WSFX':         { bg: '#f57c00', color: '#fff', initials: 'WS' },
+    'BookMyForex':  { bg: '#c2185b', color: '#fff', initials: 'BF' },
+    'EasyTransfer': { bg: '#7b1fa2', color: '#fff', initials: 'ET' },
+    'Flywire':      { bg: '#1976d2', color: '#fff', initials: 'FW' },
+  };
+
+  function getCfg(cur) { return ZOLVE_CFG[cur] || ZOLVE_CFG.DEFAULT; }
+  function fmt(n) { if (n == null) return '—'; return Math.round(n).toLocaleString('en-IN'); }
+  function fmtR(n) { if (n == null) return '—'; return Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function setCur(cur) { return { USD: '$', GBP: '£', EUR: '€', AUD: 'A$', CAD: 'C$' }[cur] || cur; }
+  function setSt(m) { document.getElementById('st').textContent = m; }
+  
+  function updateCurrencySymbol() {
+    const cur = document.getElementById('cur').value;
+    document.getElementById('amt-symbol').textContent = setCur(cur);
+    const flags = { USD: '🇺🇸', GBP: '🇬🇧', EUR: '🇪🇺', AUD: '🇦🇺', CAD: '🇨🇦' };
+    document.getElementById('flag-to').textContent = flags[cur] || cur;
+  }
+  
+  document.getElementById('cur').addEventListener('change', updateCurrencySymbol);
+  
+  let refreshInterval = null;
+  
+  function startRateRefresh() {
+    if (refreshInterval) clearInterval(refreshInterval);
+    refreshInterval = setInterval(() => {
+      const cur = document.getElementById('cur').value;
+      const amount = Number(document.getElementById('amt').value);
+      if (amount > 0) fetchMidRate(cur, amount);
+    }, 60000);
+  }
+  
+  function stopRateRefresh() {
+    if (refreshInterval) clearInterval(refreshInterval);
+  }
+  
+  async function fetchMidRate(cur, amount) {
+    try {
+      const r = await fetch(`${PROXY}/wise`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetCurrency: cur, targetAmount: amount })
+      });
+      const raw = await r.json();
+      if (raw.rate) {
+        const midRate = 1 / raw.rate;
+        document.getElementById('g-rate-txt').textContent = `1 ${cur} = ₹${fmtR(midRate)} INR`;
+      }
+    } catch(e) {}
+  }
+
+  function skeletons() {
+    document.getElementById('results-section').style.display = 'block';
+    document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('cards').innerHTML = Array(3).fill(0).map(() => `
+      <div class="pcard">
+        <div class="pcard-head">
+          <div class="pcard-brand">
+            <div class="skel" style="width:44px;height:44px;border-radius:50%;"></div>
+            <div class="skel" style="width:100px;height:16px;border-radius:8px;"></div>
+          </div>
+          <div class="skel" style="width:70px;height:20px;border-radius:20px;"></div>
+        </div>
+        <div class="pcard-body">
+          <div class="skel" style="width:80px;height:40px;border-radius:8px;"></div>
+          <div class="skel" style="width:100px;height:40px;border-radius:8px;"></div>
+        </div>
+      </div>`).join('');
+  }
+
+  function renderCards(players, bestTotal, zolveTotal) {
+    const zolveIsBest = bestTotal === zolveTotal;
+    
+    const filtered = players.filter(p => {
+      if (p.name === 'Zolve') return true;
+      return p.total > zolveTotal;
+    }).sort((a, b) => {
+      if (a.name === 'Zolve') return -1;
+      if (b.name === 'Zolve') return 1;
+      return a.total - b.total;
+    });
+
+    if (filtered.length === 0) {
+      document.getElementById('empty-state').style.display = 'block';
+      document.getElementById('cards').innerHTML = '';
+      return;
+    }
+
+    document.getElementById('cards').innerHTML = filtered.map(p => {
+      const d = DOTS[p.name] || { bg: '#999', color: '#fff', initials: p.name.slice(0, 2).toUpperCase() };
+      const diff = Math.round(p.total - zolveTotal);
+      const isZolveBest = p.name === 'Zolve' && zolveIsBest;
+      return `
+        <div class="pcard ${isZolveBest ? 'winner' : ''}">
+          <div class="pcard-head">
+            <div class="pcard-brand">
+              <div class="pdot" style="background:${d.bg};color:${d.color};">${d.initials}</div>
+              <div>
+                <div class="pname">${p.name}</div>
+              </div>
+            </div>
+            ${isZolveBest ? '<span class="best-tag" style="background: #10b981;">✓ Winning</span>' : (p.est ? '<span class="est-tag">Estimated</span>' : '')}
+          </div>
+          <div class="pcard-body">
+            <div class="pcard-fees">
+              <div class="pcard-fees-lbl">Fees</div>
+              <div class="pcard-fees-val" style="color: ${isZolveBest ? '#666' : '#ef4444'};">₹${fmt(p.fees)}</div>
+            </div>
+            <div class="pcard-total">
+              <div class="pcard-total-lbl">You pay</div>
+              <div class="pcard-total-val" style="color: ${isZolveBest ? '#10b981' : '#111'}; font-size: 32px;">₹${fmt(p.total)}</div>
+              ${p.name !== 'Zolve' && diff > 0 ? `<div class="pcard-save" style="color: #ef4444; font-weight: 600;">₹${fmt(diff)} more</div>` : ''}
+            </div>
+          </div>
+          <div class="pcard-action">
+            <button class="verify-btn ${isZolveBest ? 'winning-btn' : ''}" onclick="redirect('${p.name}')">Transfer Now</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function redirect(provider) {
+    const url = PROVIDER_URLS[provider];
+    window.open(url, '_blank');
+  }
+
+  async function run() {
+    const amount = Number(document.getElementById('amt').value);
+    const cur = document.getElementById('cur').value;
+    if (!amount || amount <= 0) { setSt('Enter a valid amount.'); return; }
+
+    document.getElementById('gobtn').disabled = true;
+    document.getElementById('mrate').style.display = 'none';
+    skeletons();
+    
+    setTimeout(() => {
+      document.getElementById('mrate').scrollIntoView({ behavior: 'smooth' });
+    }, 200);
+    
+    startRateRefresh();
+
+    let midRate = null, wiseTotal = null, wiseFees = null;
+    let wsfxTotal = null, wsfxFees = null;
+    let bmfTotal = null, bmfFees = null;
+
+    try {
+      const r = await fetch(`${PROXY}/wise`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetCurrency: cur, targetAmount: amount })
+      });
+      const raw = await r.json();
+      if (raw.rate) midRate = 1 / raw.rate;
+      const best = raw.paymentOptions?.find(p => p.payIn === 'BANK_TRANSFER') || raw.paymentOptions?.[0];
+      if (best) { wiseTotal = best.sourceAmount; wiseFees = best.fee?.total ?? 0; }
+    } catch(e) { console.error('Wise error:', e); }
+
+    if (!midRate) {
+      setSt('Could not reach proxy server.');
+      document.getElementById('gobtn').disabled = false;
+      return;
+    }
+
+    const inrBase = midRate * amount;
+
+    try {
+      const r = await fetch(`${PROXY}/wsfx?requiredCurrency=${cur}&requiredAmount=${amount}`);
+      const raw = await r.json();
+      wsfxTotal = raw.remittanceRateResponse?.inrAmountWithCharges ?? null;
+      wsfxFees = raw.remittanceRateResponse?.charges ?? null;
+      if (wsfxTotal && !wsfxFees) wsfxFees = +(wsfxTotal - inrBase).toFixed(2);
+    } catch(e) { console.error('WSFX error:', e); }
+
+    try {
+      const r = await fetch(`${PROXY}/bookmyforex`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currencyCode: cur })
+      });
+      const raw = await r.json();
+      const item = raw.result?.[0];
+      if (item) {
+        const rate = parseFloat(item.rate);
+        bmfTotal = +(rate * amount).toFixed(2);
+        bmfFees = +(bmfTotal - inrBase).toFixed(2);
+      }
+    } catch(e) { console.error('BookMyForex error:', e); }
+
+    const cfg = getCfg(cur);
+    const zRate = midRate * (1 + cfg.markup);
+    const zConv = zRate * amount;
+    const zFees = +(zConv - inrBase + cfg.swift).toFixed(2);
+    const zTotal = +(inrBase + zFees).toFixed(2);
+
+    const etSlab = ET_SLABS.find(s => inrBase <= s.uptoINR);
+    const etFees = +(inrBase * etSlab.pct).toFixed(2);
+    const etTotal = +(inrBase + etFees).toFixed(2);
+
+    const FLYWIRE_FEE = 0.018;
+
+    const players = [
+      { name: 'Zolve',        fees: zFees,    total: zTotal,    est: false },
+      { name: 'Wise',         fees: wiseFees, total: wiseTotal, est: false },
+      { name: 'WSFX',         fees: wsfxFees, total: wsfxTotal, est: false },
+      { name: 'BookMyForex',  fees: bmfFees,  total: bmfTotal,  est: false },
+      { name: 'EasyTransfer', fees: etFees,   total: etTotal,   est: true  },
+      { name: 'Flywire',      fees: +(inrBase * FLYWIRE_FEE).toFixed(2), total: +(inrBase * (1 + FLYWIRE_FEE)).toFixed(2), est: true },
+    ].filter(p => p.total != null).sort((a, b) => a.total - b.total);
+
+    const bestTotal = players[0].total;
+    const zolvePlayer = players.find(p => p.name === 'Zolve');
+    const zolveTotal = zolvePlayer?.total ?? null;
+
+    document.getElementById('mrate').style.display = 'flex';
+    document.getElementById('g-rate-txt').textContent = `1 ${cur} = ₹${fmtR(midRate)} INR`;
+
+    renderCards(players, bestTotal, zolveTotal);
+    document.getElementById('gobtn').disabled = false;
+  }
+</script>
+</body>
+</html>
