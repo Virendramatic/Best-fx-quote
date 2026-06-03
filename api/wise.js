@@ -1,5 +1,3 @@
-const fetch = require('node-fetch');
-
 module.exports = async (req, res) => {
   const { targetCurrency = 'USD', targetAmount = 1000 } = req.body;
   
