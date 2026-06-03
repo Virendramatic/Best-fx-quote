@@ -190,14 +190,15 @@
     }
     .pcard:hover { border-color: #667eea; box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
     .pcard.winner {
-      border: 2px solid #667eea;
-      background: linear-gradient(135deg, #f0f4ff 0%, #f8f7ff 100%);
-      box-shadow: 0 8px 24px rgba(102, 126, 234, 0.15);
+      border: 3px solid #10b981;
+      background: linear-gradient(135deg, #f0fdf4 0%, #f0fdf4 100%);
+      box-shadow: 0 8px 24px rgba(16, 185, 129, 0.2);
     }
     .pcard.winner::before {
-      content: '★';
-      position: absolute; right: -8px; top: -8px;
-      font-size: 40px; color: #ffd700; opacity: 0.3;
+      content: '✓';
+      position: absolute; right: 12px; top: 12px;
+      font-size: 24px; color: #10b981; opacity: 1;
+      font-weight: 800;
     }
     .pcard-head {
       display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;
@@ -211,9 +212,10 @@
     }
     .pname { font-size: 14px; font-weight: 600; color: #111; }
     .best-tag {
-      background: #667eea; color: #fff;
-      font-size: 11px; font-weight: 600;
-      padding: 4px 10px; border-radius: 20px;
+      background: #10b981; color: #fff;
+      font-size: 12px; font-weight: 700;
+      padding: 6px 12px; border-radius: 20px;
+      letter-spacing: 0.5px;
     }
     .est-tag {
       background: #f0f2f5; color: #666;
@@ -224,11 +226,13 @@
     .pcard-fees { flex: 1; }
     .pcard-fees-lbl { font-size: 10px; color: #999; margin-bottom: 2px; }
     .pcard-fees-val { font-size: 13px; font-weight: 600; color: #666; }
+    .pcard.winner .pcard-fees-val { color: #10b981; font-weight: 700; }
     .pcard-total { text-align: right; flex: 1; }
     .pcard-total-lbl { font-size: 10px; color: #999; margin-bottom: 2px; }
-    .pcard-total-val { font-size: 28px; font-weight: 800; color: #111; }
-    .pcard-total-val.green { color: #667eea; }
-    .pcard-save { font-size: 10px; color: #ef4444; font-weight: 600; margin-top: 2px; }
+    .pcard-total-val { font-size: 28px; font-weight: 800; color: #999; }
+    .pcard.winner .pcard-total-val { color: #10b981; font-size: 32px; }
+    .pcard-total-val.green { color: #10b981; }
+    .pcard-save { font-size: 11px; color: #ef4444; font-weight: 700; margin-top: 4px; }
     .pcard-action {
       display: flex; gap: 8px;
     }
@@ -467,16 +471,16 @@
                 <div class="pname">${p.name}</div>
               </div>
             </div>
-            ${isZolveBest ? '<span class="best-tag" style="background: #10b981;">✓ Winning</span>' : (p.est ? '<span class="est-tag">Estimated</span>' : '')}
+            ${isZolveBest ? '<span class="best-tag">✓ Winning</span>' : (p.est ? '<span class="est-tag">Estimated</span>' : '')}
           </div>
           <div class="pcard-body">
             <div class="pcard-fees">
               <div class="pcard-fees-lbl">Fees</div>
-              <div class="pcard-fees-val" style="color: ${isZolveBest ? '#666' : '#ef4444'};">₹${fmt(p.fees)}</div>
+              <div class="pcard-fees-val" style="color: ${isZolveBest ? '#10b981' : '#ef4444'};">₹${fmt(p.fees)}</div>
             </div>
             <div class="pcard-total">
               <div class="pcard-total-lbl">You pay</div>
-              <div class="pcard-total-val" style="color: ${isZolveBest ? '#10b981' : '#111'}; font-size: 32px;">₹${fmt(p.total)}</div>
+              <div class="pcard-total-val" style="color: ${isZolveBest ? '#10b981' : '#999'}; font-size: 32px;">₹${fmt(p.total)}</div>
               ${p.name !== 'Zolve' && diff > 0 ? `<div class="pcard-save" style="color: #ef4444; font-weight: 600;">₹${fmt(diff)} more</div>` : ''}
             </div>
           </div>
