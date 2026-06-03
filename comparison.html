@@ -461,7 +461,7 @@
     document.getElementById('cards').innerHTML = filtered.map(p => {
       const d = DOTS[p.name] || { bg: '#999', color: '#fff', initials: p.name.slice(0, 2).toUpperCase() };
       const diff = Math.round(p.total - zolveTotal);
-      const isZolveBest = p.name === 'Zolve' && zolveIsBest;
+      const isZolveBest = p.name === 'Zolve';
       return `
         <div class="pcard ${isZolveBest ? 'winner' : ''}">
           <div class="pcard-head">
@@ -488,6 +488,7 @@
             <button class="verify-btn ${isZolveBest ? 'winning-btn' : ''}" onclick="redirect('${p.name}')">Transfer Now</button>
           </div>
         </div>`;
+    }).join('');
     }).join('');
   }
 
