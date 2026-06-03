@@ -335,10 +335,10 @@
 </div>
 
 <script>
-  // Production: Use Cloud Functions, Development: Use localhost
+  // Production: Use Vercel API, Development: Use localhost
   const PROXY = window.location.hostname === 'localhost' 
     ? 'http://localhost:3001'
-    : 'https://us-central1-best-fx-quote.cloudfunctions.net';
+    : '';
 
   const ZOLVE_CFG = {
     USD: { markup: 0.0040, swift: 899 },

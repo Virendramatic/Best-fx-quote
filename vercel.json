@@ -2,14 +2,11 @@
   "buildCommand": "echo 'No build needed'",
   "outputDirectory": ".",
   "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/comparison.html"
-    }
-  ],
-  "functions": {
-    "api/*.js": {
-      "runtime": "nodejs18.x"
-    }
-  }
+    { "source": "/wise", "destination": "/api/wise.js" },
+    { "source": "/wsfx", "destination": "/api/wsfx.js" },
+    { "source": "/bookmyforex", "destination": "/api/bookmyforex.js" },
+    { "source": "/api/rates", "destination": "/api/rates.js" },
+    { "source": "/api/comparison", "destination": "/api/rates.js" },
+    { "source": "/(.*)", "destination": "/comparison.html" }
+  ]
 }
