@@ -228,11 +228,13 @@
     .pcard-fees-val { font-size: 13px; font-weight: 600; color: #666; }
     .pcard.winner .pcard-fees-val { color: #10b981; font-weight: 700; }
     .pcard-total { text-align: right; flex: 1; }
-    .pcard-total-lbl { font-size: 10px; color: #999; margin-bottom: 2px; }
+    .pcard-total-lbl { font-size: 11px; color: #333; font-weight: 600; margin-bottom: 2px; }
     .pcard-total-val { font-size: 28px; font-weight: 800; color: #999; }
     .pcard.winner .pcard-total-val { color: #10b981; font-size: 32px; }
     .pcard-total-val.green { color: #10b981; }
     .pcard-save { font-size: 11px; color: #ef4444; font-weight: 700; margin-top: 4px; }
+    .pcard.winner .pcard-save { display: none; }
+    .pcard-savings { font-size: 10px; color: #10b981; font-weight: 600; margin-top: 4px; }
     .pcard-action {
       display: flex; gap: 8px;
     }
@@ -481,7 +483,7 @@
             <div class="pcard-total">
               <div class="pcard-total-lbl">You pay</div>
               <div class="pcard-total-val" style="color: ${isZolveBest ? '#10b981' : '#999'}; font-size: 32px;">₹${fmt(p.total)}</div>
-              ${p.name !== 'Zolve' && diff > 0 ? `<div class="pcard-save" style="color: #ef4444; font-weight: 600;">₹${fmt(diff)} more</div>` : ''}
+              ${p.name === 'Zolve' && diff > 0 ? `<div class="pcard-savings">Saves you ₹${fmt(Math.abs(diff))} vs next best</div>` : (p.name !== 'Zolve' && diff > 0 ? `<div class="pcard-save">₹${fmt(diff)} more</div>` : '')}
             </div>
           </div>
           <div class="pcard-action">
