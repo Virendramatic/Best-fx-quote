@@ -1,12 +1,12 @@
 {
   "buildCommand": "echo 'No build needed'",
   "outputDirectory": ".",
-  "rewrites": [
-    { "source": "/wise", "destination": "/api/wise.js" },
-    { "source": "/wsfx", "destination": "/api/wsfx.js" },
-    { "source": "/bookmyforex", "destination": "/api/bookmyforex.js" },
-    { "source": "/api/rates", "destination": "/api/rates.js" },
-    { "source": "/api/comparison", "destination": "/api/rates.js" },
-    { "source": "/(.*)", "destination": "/comparison.html" }
+  "routes": [
+    { "src": "^/wise$", "dest": "/api/wise" },
+    { "src": "^/wsfx", "dest": "/api/wsfx" },
+    { "src": "^/bookmyforex$", "dest": "/api/bookmyforex" },
+    { "src": "^/api/rates", "dest": "/api/rates" },
+    { "src": "^/api/comparison", "dest": "/api/rates" },
+    { "src": "^/.*", "dest": "/comparison.html" }
   ]
 }
