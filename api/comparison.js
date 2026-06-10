@@ -126,25 +126,23 @@ module.exports = async (req, res) => {
     const zFees = +(zConv - inrBase + cfg.swift).toFixed(2);
     const zTotal = +(inrBase + zFees).toFixed(2);
 
-    const filtered = [];
-    filtered.push({ provider: 'Zolve', fees: zFees, total: zTotal, isBest: true });
+    // Return ALL providers (not filtered)
+    const allRates = [];
+    allRates.push({ provider: 'Zolve', fees: zFees, total: zTotal });
 
     Object.keys(competitors).forEach(provider => {
-      if (competitors[provider].total > zTotal) {
-        filtered.push({
-          provider: provider.charAt(0).toUpperCase() + provider.slice(1),
-          fees: competitors[provider].fees,
-          total: competitors[provider].total,
-          isBest: false,
-        });
-      }
+      allRates.push({
+        provider: provider.charAt(0).toUpperCase() + provider.slice(1),
+        fees: competitors[provider].fees,
+        total: competitors[provider].total,
+      });
     });
 
     res.json({
       currency,
       amount: amt,
       midRate,
-      rates: filtered,
+      rates: allRates,
       timestamp: new Date().toISOString(),
     });
   } catch (err) {

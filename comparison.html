@@ -301,10 +301,21 @@
           <span class="corridor-flag" id="flag-to">🇺🇸</span>
           <select id="cur" class="corridor-select">
             <option value="USD">USD</option>
-            <option value="GBP">GBP</option>
             <option value="EUR">EUR</option>
+            <option value="GBP">GBP</option>
             <option value="AUD">AUD</option>
             <option value="CAD">CAD</option>
+            <option value="AED">AED</option>
+            <option value="SAR">SAR</option>
+            <option value="DKK">DKK</option>
+            <option value="NOK">NOK</option>
+            <option value="SEK">SEK</option>
+            <option value="NZD">NZD</option>
+            <option value="SGD">SGD</option>
+            <option value="HKD">HKD</option>
+            <option value="ZAR">ZAR</option>
+            <option value="JPY">JPY</option>
+            <option value="CHF">CHF</option>
           </select>
         </div>
       </div>
@@ -347,11 +358,22 @@
     : '';
 
   const ZOLVE_CFG = {
-    USD: { markup: 0.0040, swift: 899 },
-    GBP: { markup: 0.0030, swift: 1499 },
-    EUR: { markup: 0.0030, swift: 1299 },
-    AUD: { markup: 0.0040, swift: 1299 },
-    CAD: { markup: 0.0040, swift: 1299 },
+    USD: { markup: 0.0035, swift: 899 },
+    EUR: { markup: 0.0035, swift: 1399 },
+    GBP: { markup: 0.0035, swift: 1499 },
+    AUD: { markup: 0.0035, swift: 1399 },
+    CAD: { markup: 0.0035, swift: 1399 },
+    AED: { markup: 0.0100, swift: 1399 },
+    SAR: { markup: 0.0200, swift: 1399 },
+    DKK: { markup: 0.0150, swift: 1399 },
+    NOK: { markup: 0.0150, swift: 1399 },
+    SEK: { markup: 0.0150, swift: 1399 },
+    NZD: { markup: 0.0100, swift: 1399 },
+    SGD: { markup: 0.0070, swift: 1399 },
+    HKD: { markup: 0.0150, swift: 1399 },
+    ZAR: { markup: 0.0150, swift: 1399 },
+    JPY: { markup: 0.1200, swift: 1399 },
+    CHF: { markup: 0.0100, swift: 1399 },
     DEFAULT: { markup: 0.0100, swift: 1499 },
   };
 
@@ -381,13 +403,13 @@
   function getCfg(cur) { return ZOLVE_CFG[cur] || ZOLVE_CFG.DEFAULT; }
   function fmt(n) { if (n == null) return '—'; return Math.round(n).toLocaleString('en-IN'); }
   function fmtR(n) { if (n == null) return '—'; return Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
-  function setCur(cur) { return { USD: '$', GBP: '£', EUR: '€', AUD: 'A$', CAD: 'C$' }[cur] || cur; }
+  function setCur(cur) { return { USD: '$', EUR: '€', GBP: '£', AUD: 'A$', CAD: 'C$', AED: 'د.إ', SAR: '﷼', DKK: 'kr', NOK: 'kr', SEK: 'kr', NZD: 'NZ$', SGD: 'S$', HKD: 'HK$', ZAR: 'R', JPY: '¥', CHF: 'CHF' }[cur] || cur; }
   function setSt(m) { document.getElementById('st').textContent = m; }
   
   function updateCurrencySymbol() {
     const cur = document.getElementById('cur').value;
     document.getElementById('amt-symbol').textContent = setCur(cur);
-    const flags = { USD: '🇺🇸', GBP: '🇬🇧', EUR: '🇪🇺', AUD: '🇦🇺', CAD: '🇨🇦' };
+    const flags = { USD: '🇺🇸', EUR: '🇪🇺', GBP: '🇬🇧', AUD: '�🇺', CAD: '��🇦', AED: '�🇪', SAR: '🇸🇦', DKK: '🇩🇰', NOK: '🇳🇴', SEK: '🇸�', NZD: '🇳🇿', SGD: '🇸🇬', HKD: '🇭🇰', ZAR: '🇿🇦', JPY: '🇯🇵', CHF: '�🇨�' };
     document.getElementById('flag-to').textContent = flags[cur] || cur;
   }
   
