@@ -438,8 +438,13 @@
         body: JSON.stringify({ targetCurrency: cur, targetAmount: amount })
       });
       const raw = await r.json();
-      if (raw.rate) {
-        const midRate = 1 / raw.rate;
+      
+      if (raw.midMarketRate) {
+        const midRate = raw.midMarketRate;
+        document.getElementById('g-rate-txt').textContent = `1 ${cur} = ₹${fmtR(midRate)} INR`;
+      } else if (raw.providers?.[0]?.quotes?.[0]) {
+        const quote = raw.providers[0].quotes[0];
+        const midRate = 1 / quote.rate;
         document.getElementById('g-rate-txt').textContent = `1 ${cur} = ₹${fmtR(midRate)} INR`;
       }
     } catch(e) {}
@@ -546,9 +551,21 @@
         body: JSON.stringify({ targetCurrency: cur, targetAmount: amount })
       });
       const raw = await r.json();
-      if (raw.rate) midRate = 1 / raw.rate;
-      const best = raw.paymentOptions?.find(p => p.payIn === 'BANK_TRANSFER') || raw.paymentOptions?.[0];
-      if (best) { wiseTotal = best.sourceAmount; wiseFees = best.fee?.total ?? 0; }
+      
+      // Parse Wise gateway API response
+      if (raw.providers?.[0]?.quotes?.[0]) {
+        const quote = raw.providers[0].quotes[0];
+        midRate = raw.midMarketRate || (1 / quote.rate);
+        
+        // Total cost = calculated send amount + fee
+        if (raw.calculatedSendAmount) {
+          wiseTotal = raw.calculatedSendAmount + quote.fee;
+          wiseFees = quote.fee;
+        } else {
+          wiseTotal = null;
+          wiseFees = null;
+        }
+      }
     } catch(e) { console.error('Wise error:', e); }
 
     if (!midRate) {

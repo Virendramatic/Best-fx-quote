@@ -37,22 +37,29 @@ module.exports = async (req, res) => {
     let midRate = null;
     let competitors = {};
 
-    // Fetch Wise rate
+    // Fetch Wise rate using their comparison endpoint
     try {
-      const r = await fetch('https://api.transferwise.com/v3/quotes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sourceCurrency: 'INR',
-          targetCurrency: currency,
-          targetAmount: String(amt),
-        }),
+      const params = new URLSearchParams({
+        sendAmount: String(amt),
+        sourceCurrency: 'INR',
+        targetCurrency: currency,
+        filter: 'POPULAR',
+        includeWise: 'true',
+        numberOfProviders: '1',
+        sourceCountry: 'IN',
+        payInMethod: 'BANK_TRANSFER',
       });
+      const r = await fetch(`https://wise.com/gateway/v4/comparisons?${params}`);
       const data = await r.json();
-      if (data.rate) midRate = 1 / data.rate;
-      const best = data.paymentOptions?.find(p => p.payIn === 'BANK_TRANSFER') || data.paymentOptions?.[0];
-      if (best) {
-        competitors.wise = { total: best.sourceAmount, fees: best.fee?.total ?? 0 };
+      if (data.providers?.[0]?.quotes?.[0]) {
+        const quote = data.providers[0].quotes[0];
+        midRate = 1 / quote.rate;
+        // For Wise, receivedAmount is in target currency, fee is in INR
+        // Total cost = sendAmount (we send) + fee
+        competitors.wise = { 
+          total: amt + quote.fee, 
+          fees: quote.fee 
+        };
       }
     } catch (e) {}
 
