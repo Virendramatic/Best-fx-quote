@@ -7,9 +7,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Serve static files (HTML, CSS, etc)
-app.use(express.static(path.join(__dirname)));
-
 const PORT = 3001;
 
 // ─── WISE ────────────────────────────────────────────────────────────────────
@@ -81,30 +78,22 @@ app.post("/wise", async (req, res) => {
 
 // ─── WSFX ─────────────────────────────────────────────────────────────────────
 // GET /wsfx?requiredCurrency=USD&requiredAmount=10000
-// Forwards to api.wsfx.in/wsfx/rateCalculator
+// Forwards to apimerged.wsfx.in/b2cCalculator
 app.get("/wsfx", async (req, res) => {
   const { requiredCurrency = "USD", requiredAmount = 1000 } = req.query;
   const params = new URLSearchParams({
     product: "REMITTANCE",
-    requiredCurrency,
     sellType: "SELL",
+    travelingCurrency: requiredCurrency,
+    requiredCurrency,
     requiredAmount: String(requiredAmount),
+    issuerCode: "HOTTISSUER",
   });
   try {
     const response = await fetch(
-      `https://api.wsfx.in/wsfx/rateCalculator?${params}`,
+      `https://apimerged.wsfx.in/b2cCalculator?${params}`,
       {
         method: "GET",
-        headers: {
-          accept: "*/*",
-          "accept-language": "en-GB,en-US;q=0.9,en;q=0.8",
-          channel: "consumersappb2c",
-          origin: "https://www.wsfx.in",
-          referer: "https://www.wsfx.in/wsfx-student",
-          "user-agent":
-            "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36",
-          "x-auth-token": "api-od926q416295z936kw76v1g9no952064",
-        },
       }
     );
     const data = await response.json();
@@ -186,10 +175,30 @@ app.get("/api/rates", async (req, res) => {
         }),
       });
       const data = await r.json();
-      if (data.rate) midRate = 1 / data.rate;
       const best = data.paymentOptions?.find(p => p.payIn === "BANK_TRANSFER") || data.paymentOptions?.[0];
       if (best) {
         competitors.wise = { total: best.sourceAmount, fees: best.fee?.total ?? 0 };
+      }
+    } catch (e) {}
+
+    // Fetch WSFX rate and use its mid-market rate for Zolve calculation
+    try {
+      const params = new URLSearchParams({
+        product: "REMITTANCE",
+        sellType: "SELL",
+        travelingCurrency: currency,
+        requiredCurrency: currency,
+        requiredAmount: String(amt),
+        issuerCode: "HOTTISSUER",
+      });
+      const r = await fetch(`https://apimerged.wsfx.in/b2cCalculator?${params}`);
+      const data = await r.json();
+      if (data.requiredCurrencyRate) {
+        midRate = data.requiredCurrencyRate; // Use WSFX rate for Zolve
+      }
+      const total = data.finalInrAmount;
+      if (total) {
+        competitors.wsfx = { total, fees: data.charges };
       }
     } catch (e) {}
 
@@ -197,24 +206,17 @@ app.get("/api/rates", async (req, res) => {
     try {
       const params = new URLSearchParams({
         product: "REMITTANCE",
-        requiredCurrency: currency,
         sellType: "SELL",
+        travelingCurrency: currency,
+        requiredCurrency: currency,
         requiredAmount: String(amt),
+        issuerCode: "HOTTISSUER",
       });
-      const r = await fetch(`https://api.wsfx.in/wsfx/rateCalculator?${params}`, {
+      const r = await fetch(`https://apimerged.wsfx.in/b2cCalculator?${params}`, {
         method: "GET",
-        headers: {
-          accept: "*/*",
-          "accept-language": "en-GB,en-US;q=0.9,en;q=0.8",
-          channel: "consumersappb2c",
-          origin: "https://www.wsfx.in",
-          referer: "https://www.wsfx.in/wsfx-student",
-          "user-agent": "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36",
-          "x-auth-token": "api-od926q416295z936kw76v1g9no952064",
-        },
       });
       const data = await r.json();
-      const total = data.remittanceRateResponse?.inrAmountWithCharges;
+      const total = data.finalInrAmount;
       if (total && midRate) {
         const inrBase = midRate * amt;
         competitors.wsfx = { total, fees: total - inrBase };
@@ -324,10 +326,30 @@ app.get("/api/comparison", async (req, res) => {
         }),
       });
       const data = await r.json();
-      if (data.rate) midRate = 1 / data.rate;
       const best = data.paymentOptions?.find(p => p.payIn === "BANK_TRANSFER") || data.paymentOptions?.[0];
       if (best) {
         players.Wise = { total: best.sourceAmount, fees: best.fee?.total ?? 0 };
+      }
+    } catch (e) {}
+
+    // Fetch WSFX rate and use its mid-market rate for Zolve calculation
+    try {
+      const params = new URLSearchParams({
+        product: "REMITTANCE",
+        sellType: "SELL",
+        travelingCurrency: currency,
+        requiredCurrency: currency,
+        requiredAmount: String(amt),
+        issuerCode: "HOTTISSUER",
+      });
+      const r = await fetch(`https://apimerged.wsfx.in/b2cCalculator?${params}`);
+      const data = await r.json();
+      if (data.requiredCurrencyRate) {
+        midRate = data.requiredCurrencyRate; // Use WSFX rate for Zolve
+      }
+      const total = data.finalInrAmount;
+      if (total) {
+        players.WSFX = { total, fees: data.charges };
       }
     } catch (e) {}
 
@@ -335,24 +357,17 @@ app.get("/api/comparison", async (req, res) => {
     try {
       const params = new URLSearchParams({
         product: "REMITTANCE",
-        requiredCurrency: currency,
         sellType: "SELL",
+        travelingCurrency: currency,
+        requiredCurrency: currency,
         requiredAmount: String(amt),
+        issuerCode: "HOTTISSUER",
       });
-      const r = await fetch(`https://api.wsfx.in/wsfx/rateCalculator?${params}`, {
+      const r = await fetch(`https://apimerged.wsfx.in/b2cCalculator?${params}`, {
         method: "GET",
-        headers: {
-          accept: "*/*",
-          "accept-language": "en-GB,en-US;q=0.9,en;q=0.8",
-          channel: "consumersappb2c",
-          origin: "https://www.wsfx.in",
-          referer: "https://www.wsfx.in/wsfx-student",
-          "user-agent": "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36",
-          "x-auth-token": "api-od926q416295z936kw76v1g9no952064",
-        },
       });
       const data = await r.json();
-      const total = data.remittanceRateResponse?.inrAmountWithCharges;
+      const total = data.finalInrAmount;
       if (total && midRate) {
         const inrBase = midRate * amt;
         players.WSFX = { total, fees: total - inrBase };
@@ -418,6 +433,9 @@ app.get("/api/comparison", async (req, res) => {
 app.get("/", (req, res) => {
   res.json({ status: "fx-proxy running", port: PORT });
 });
+
+// Serve static files (HTML, CSS, etc) - AFTER all API routes
+app.use(express.static(path.join(__dirname)));
 
 app.listen(PORT, () => {
   console.log(`\n✅  FX Proxy running at http://localhost:${PORT}`);
