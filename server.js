@@ -15,20 +15,64 @@ const PORT = 3001;
 // ─── WISE ────────────────────────────────────────────────────────────────────
 // POST /wise
 // Body: { targetCurrency, targetAmount }
-// Forwards to api.transferwise.com/v3/quotes
+// Gets mid-market rate first, then back-calculates send amount for Wise comparisons API
 app.post("/wise", async (req, res) => {
   const { targetCurrency = "USD", targetAmount = 1000 } = req.body;
   try {
-    const response = await fetch("https://api.transferwise.com/v3/quotes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sourceCurrency: "INR",
-        targetCurrency,
-        targetAmount: String(targetAmount),
-      }),
+    // Step 1: Get mid-market rate from Wise v3/quotes API
+    let midMarketRate = null;
+    try {
+      const quoteResponse = await fetch("https://api.transferwise.com/v3/quotes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sourceCurrency: "INR",
+          targetCurrency,
+          targetAmount: String(targetAmount),
+        }),
+      });
+      const quoteData = await quoteResponse.json();
+      if (quoteData.rate) {
+        midMarketRate = 1 / quoteData.rate; // Convert to INR per target currency
+      }
+    } catch (e) {
+      console.error("Failed to get mid-market rate:", e.message);
+    }
+
+    if (!midMarketRate) {
+      return res.status(400).json({ error: "Could not fetch mid-market rate" });
+    }
+
+    // Step 2: Back-calculate send amount: sendAmount = targetAmount / (1 / midMarketRate)
+    // Add 0.08% buffer to match Wise's calculations
+    const sendAmount = Math.round(targetAmount * midMarketRate * 1.0008);
+
+    // Step 3: Query Wise comparisons API with calculated send amount
+    const params = new URLSearchParams({
+      sendAmount: String(sendAmount),
+      sourceCurrency: 'INR',
+      targetCurrency,
+      filter: 'POPULAR',
+      includeWise: 'true',
+      numberOfProviders: '1',
+      sourceCountry: 'IN',
+      payInMethod: 'BANK_TRANSFER',
     });
+    
+    const response = await fetch(`https://wise.com/gateway/v4/comparisons?${params}`);
     const data = await response.json();
+    
+    // Add 18% GST to the fee only
+    if (data.providers?.[0]?.quotes?.[0]) {
+      const originalFee = data.providers[0].quotes[0].fee;
+      const gst = originalFee * 0.18;
+      data.providers[0].quotes[0].fee = originalFee + gst;
+    }
+    
+    // Attach mid-market rate to response for client use
+    data.midMarketRate = midMarketRate;
+    data.calculatedSendAmount = sendAmount;
+    
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
