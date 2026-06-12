@@ -355,7 +355,7 @@
   // Production: Use Vercel API, Development: Use localhost
   const PROXY = window.location.hostname === 'localhost' 
     ? 'http://localhost:3001'
-    : '';
+    : '/api';
 
   const ZOLVE_CFG = {
     USD: { markup: 0.0035, swift: 899 },
@@ -432,14 +432,10 @@
   
   async function fetchMidRate(cur, amount) {
     try {
-      const r = await fetch(`${PROXY}/wise`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetCurrency: cur, targetAmount: amount })
-      });
+      const r = await fetch(`${PROXY}/rates?currency=${cur}&amount=${amount}`);
       const raw = await r.json();
-      if (raw.rate) {
-        const midRate = 1 / raw.rate;
+      if (raw.midRate) {
+        const midRate = raw.midRate;
         document.getElementById('g-rate-txt').textContent = `1 ${cur} = ₹${fmtR(midRate)} INR`;
       }
     } catch(e) {}
@@ -540,16 +536,13 @@
     let bmfTotal = null, bmfFees = null;
 
     try {
-      const r = await fetch(`${PROXY}/wise`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetCurrency: cur, targetAmount: amount })
-      });
+      const r = await fetch(`${PROXY}/rates?currency=${cur}&amount=${amount}`);
       const raw = await r.json();
-      if (raw.rate) midRate = 1 / raw.rate;
-      const best = raw.paymentOptions?.find(p => p.payIn === 'BANK_TRANSFER') || raw.paymentOptions?.[0];
-      if (best) { wiseTotal = best.sourceAmount; wiseFees = best.fee?.total ?? 0; }
-    } catch(e) { console.error('Wise error:', e); }
+      if (raw.midRate) midRate = raw.midRate;
+      // Get Wise rate from the rates endpoint
+      const wiseRate = raw.rates?.find(rate => rate.provider === 'Wise');
+      if (wiseRate) { wiseTotal = wiseRate.total; wiseFees = wiseRate.fees; }
+    } catch(e) { console.error('Rates error:', e); }
 
     if (!midRate) {
       setSt('Could not reach proxy server.');
@@ -583,9 +576,30 @@
     } catch(e) { console.error('BookMyForex error:', e); }
 
     const cfg = getCfg(cur);
-    const zRate = midRate * (1 + cfg.markup);
-    const zConv = zRate * amount;
-    const zFees = +(zConv - inrBase + cfg.swift).toFixed(2);
+    
+    // Zolve calculation using RBI GST slab method
+    let gstFx;
+    if (inrBase <= 100000) {
+      gstFx = inrBase * 0.01;
+    } else if (inrBase <= 1000000) {
+      gstFx = 1000 + (inrBase - 100000) * 0.005;
+    } else {
+      gstFx = 5500 + (inrBase - 1000000) * 0.001;
+    }
+    gstFx = Math.min(gstFx, 60000);
+    gstFx = Math.max(gstFx * 0.18, 45);
+    
+    // Forex markup (applied to base amount)
+    const markup = inrBase * cfg.markup;
+    
+    // Service fees = SWIFT + markup
+    const svcFees = cfg.swift + markup;
+    
+    // GST on service fees (18%)
+    const gstSvc = svcFees * 0.18;
+    
+    // Total = base + gstFx + svcFees + gstSvc
+    const zFees = +(gstFx + svcFees + gstSvc).toFixed(2);
     const zTotal = +(inrBase + zFees).toFixed(2);
 
     const etSlab = ET_SLABS.find(s => inrBase <= s.uptoINR);
