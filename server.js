@@ -16,59 +16,82 @@ const PORT = 3001;
 app.post("/wise", async (req, res) => {
   const { targetCurrency = "USD", targetAmount = 1000 } = req.body;
   try {
-    // Step 1: Get mid-market rate from Wise v3/quotes API
+    // Step 1: Fetch mid-rate from FastForex
     let midMarketRate = null;
     try {
-      const quoteResponse = await fetch("https://api.transferwise.com/v3/quotes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sourceCurrency: "INR",
-          targetCurrency,
-          targetAmount: String(targetAmount),
-        }),
-      });
-      const quoteData = await quoteResponse.json();
-      if (quoteData.rate) {
-        midMarketRate = 1 / quoteData.rate; // Convert to INR per target currency
+      const ffKey = process.env.FASTFOREX_KEY;
+      if (ffKey) {
+        const quoteResponse = await fetch(
+          `https://api.fastforex.io/fetch-one?from=INR&to=${targetCurrency}&api_key=${ffKey}`
+        );
+        const quoteData = await quoteResponse.json();
+        if (quoteData.result && quoteData.result[targetCurrency]) {
+          midMarketRate = quoteData.result[targetCurrency];
+        }
       }
     } catch (e) {
-      console.error("Failed to get mid-market rate:", e.message);
+      console.error("Failed to get mid-market rate from FastForex:", e.message);
+    }
+
+    // Fallback to Wise if FastForex fails
+    if (!midMarketRate) {
+      try {
+        const quoteResponse = await fetch("https://api.transferwise.com/v3/quotes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sourceCurrency: "INR",
+            targetCurrency,
+            targetAmount: String(targetAmount),
+          }),
+        });
+        const quoteData = await quoteResponse.json();
+        if (quoteData.rate) {
+          midMarketRate = 1 / quoteData.rate;
+        }
+      } catch (e) {
+        console.error("Failed to get mid-market rate from Wise:", e.message);
+      }
     }
 
     if (!midMarketRate) {
       return res.status(400).json({ error: "Could not fetch mid-market rate" });
     }
 
-    // Step 2: Back-calculate send amount: sendAmount = targetAmount / (1 / midMarketRate)
-    // Add 0.08% buffer to match Wise's calculations
-    const sendAmount = Math.round(targetAmount * midMarketRate * 1.0008);
-
-    // Step 3: Query Wise comparisons API with calculated send amount
-    const params = new URLSearchParams({
-      sendAmount: String(sendAmount),
-      sourceCurrency: 'INR',
-      targetCurrency,
-      filter: 'POPULAR',
-      includeWise: 'true',
-      numberOfProviders: '1',
-      sourceCountry: 'IN',
-      payInMethod: 'BANK_TRANSFER',
+    // Step 2: Query Wise v3/quotes API directly
+    const r = await fetch('https://api.transferwise.com/v3/quotes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sourceCurrency: 'INR',
+        targetCurrency,
+        targetAmount: String(targetAmount),
+      }),
     });
+    const data = await r.json();
     
-    const response = await fetch(`https://wise.com/gateway/v4/comparisons?${params}`);
-    const data = await response.json();
-    
-    // Add 18% GST to the fee only
-    if (data.providers?.[0]?.quotes?.[0]) {
-      const originalFee = data.providers[0].quotes[0].fee;
-      const gst = originalFee * 0.18;
-      data.providers[0].quotes[0].fee = originalFee + gst;
+    // Extract payment options and add GST to fees
+    if (data.paymentOptions) {
+      data.paymentOptions = data.paymentOptions.map(option => {
+        if (option.fee?.total) {
+          const gst = option.fee.total * 0.18;
+          return {
+            ...option,
+            fee: {
+              ...option.fee,
+              total: option.fee.total + gst,
+              breakdown: {
+                ...option.fee.breakdown,
+                total: option.fee.total + gst
+              }
+            }
+          };
+        }
+        return option;
+      });
     }
     
-    // Attach mid-market rate to response for client use
     data.midMarketRate = midMarketRate;
-    data.calculatedSendAmount = sendAmount;
     
     res.json(data);
   } catch (err) {
@@ -163,6 +186,22 @@ app.get("/api/rates", async (req, res) => {
     let midRate = null;
     let competitors = {};
 
+    // Fetch mid-rate from FastForex for Zolve calculations
+    try {
+      const ffKey = process.env.FASTFOREX_KEY;
+      if (ffKey) {
+        const r = await fetch(
+          `https://api.fastforex.io/fetch-one?from=INR&to=${currency}&api_key=${ffKey}`
+        );
+        const data = await r.json();
+        if (data.result && data.result[currency]) {
+          midRate = data.result[currency];
+        }
+      }
+    } catch (e) {
+      console.error("FastForex error:", e.message);
+    }
+
     // Fetch Wise rate
     try {
       const r = await fetch("https://api.transferwise.com/v3/quotes", {
@@ -175,6 +214,9 @@ app.get("/api/rates", async (req, res) => {
         }),
       });
       const data = await r.json();
+      if (!midRate && data.rate) {
+        midRate = 1 / data.rate;
+      }
       const best = data.paymentOptions?.find(p => p.payIn === "BANK_TRANSFER") || data.paymentOptions?.[0];
       if (best) {
         competitors.wise = { total: best.sourceAmount, fees: best.fee?.total ?? 0 };
@@ -314,6 +356,22 @@ app.get("/api/comparison", async (req, res) => {
     let midRate = null;
     const players = {};
 
+    // Fetch mid-rate from FastForex for Zolve calculations
+    try {
+      const ffKey = process.env.FASTFOREX_KEY;
+      if (ffKey) {
+        const r = await fetch(
+          `https://api.fastforex.io/fetch-one?from=INR&to=${currency}&api_key=${ffKey}`
+        );
+        const data = await r.json();
+        if (data.result && data.result[currency]) {
+          midRate = data.result[currency];
+        }
+      }
+    } catch (e) {
+      console.error("FastForex error:", e.message);
+    }
+
     // Fetch Wise rate
     try {
       const r = await fetch("https://api.transferwise.com/v3/quotes", {
@@ -326,6 +384,9 @@ app.get("/api/comparison", async (req, res) => {
         }),
       });
       const data = await r.json();
+      if (!midRate && data.rate) {
+        midRate = 1 / data.rate;
+      }
       const best = data.paymentOptions?.find(p => p.payIn === "BANK_TRANSFER") || data.paymentOptions?.[0];
       if (best) {
         players.Wise = { total: best.sourceAmount, fees: best.fee?.total ?? 0 };

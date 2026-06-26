@@ -1,5 +1,6 @@
 module.exports = async (req, res) => {
   const { currency = 'USD', amount = 10000 } = req.query;
+  const FASTFOREX_API_KEY = '57e9c11458-bc06ab41de-tb9oig';
   
   const ZOLVE_CFG = {
     USD: { markup: 0.0035, swift: 899 },
@@ -37,29 +38,15 @@ module.exports = async (req, res) => {
     let midRate = null;
     let competitors = {};
 
-    // Fetch Wise rate using their comparison endpoint
+    // Fetch mid-market rate from fastforex (primary source)
     try {
-      const params = new URLSearchParams({
-        sendAmount: String(amt),
-        sourceCurrency: 'INR',
-        targetCurrency: currency,
-        filter: 'POPULAR',
-        includeWise: 'true',
-        numberOfProviders: '1',
-        sourceCountry: 'IN',
-        payInMethod: 'BANK_TRANSFER',
+      const r = await fetch('https://api.fastforex.io/fetch-all?base=INR', {
+        method: 'GET',
+        headers: { 'X-API-Key': FASTFOREX_API_KEY },
       });
-      const r = await fetch(`https://wise.com/gateway/v4/comparisons?${params}`);
       const data = await r.json();
-      if (data.providers?.[0]?.quotes?.[0]) {
-        const quote = data.providers[0].quotes[0];
-        midRate = 1 / quote.rate;
-        // For Wise, receivedAmount is in target currency, fee is in INR
-        // Total cost = sendAmount (we send) + fee
-        competitors.wise = { 
-          total: amt + quote.fee, 
-          fees: quote.fee 
-        };
+      if (data.results && data.results[currency]) {
+        midRate = 1 / data.results[currency]; // INR per target currency
       }
     } catch (e) {}
 
@@ -67,24 +54,17 @@ module.exports = async (req, res) => {
     try {
       const params = new URLSearchParams({
         product: 'REMITTANCE',
-        requiredCurrency: currency,
         sellType: 'SELL',
+        travelingCurrency: currency,
+        requiredCurrency: currency,
         requiredAmount: String(amt),
+        issuerCode: 'HOTTISSUER',
       });
-      const r = await fetch(`https://api.wsfx.in/wsfx/rateCalculator?${params}`, {
+      const r = await fetch(`https://apimerged.wsfx.in/b2cCalculator?${params}`, {
         method: 'GET',
-        headers: {
-          accept: '*/*',
-          'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8',
-          channel: 'consumersappb2c',
-          origin: 'https://www.wsfx.in',
-          referer: 'https://www.wsfx.in/wsfx-student',
-          'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
-          'x-auth-token': 'api-od926q416295z936kw76v1g9no952064',
-        },
       });
       const data = await r.json();
-      const total = data.remittanceRateResponse?.inrAmountWithCharges;
+      const total = data.finalInrAmount;
       if (total && midRate) {
         const inrBase = midRate * amt;
         competitors.wsfx = { total, fees: total - inrBase };
