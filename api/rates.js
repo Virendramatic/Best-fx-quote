@@ -1,6 +1,5 @@
 module.exports = async (req, res) => {
   const { currency = 'USD', amount = 10000 } = req.query;
-  const FASTFOREX_API_KEY = '57e9c11458-bc06ab41de-tb9oig';
   
   const ZOLVE_CFG = {
     USD: { markup: 0.0035, swift: 899 },
@@ -38,19 +37,7 @@ module.exports = async (req, res) => {
     let midRate = null;
     let competitors = {};
 
-    // Fetch mid-market rate from fastforex (primary source)
-    try {
-      const r = await fetch('https://api.fastforex.io/fetch-all?base=INR', {
-        method: 'GET',
-        headers: { 'X-API-Key': FASTFOREX_API_KEY },
-      });
-      const data = await r.json();
-      if (data.results && data.results[currency]) {
-        midRate = 1 / data.results[currency]; // INR per target currency
-      }
-    } catch (e) {}
-
-    // Fetch WSFX rate
+    // Fetch WSFX rate as primary mid-market source for Zolve calculations
     try {
       const params = new URLSearchParams({
         product: 'REMITTANCE',
@@ -64,10 +51,38 @@ module.exports = async (req, res) => {
         method: 'GET',
       });
       const data = await r.json();
+      if (data.requiredCurrencyRate) {
+        midRate = data.requiredCurrencyRate;
+      }
       const total = data.finalInrAmount;
-      if (total && midRate) {
-        const inrBase = midRate * amt;
-        competitors.wsfx = { total, fees: total - inrBase };
+      if (total) {
+        competitors.wsfx = { total, fees: total - midRate * amt };
+      }
+    } catch (e) {}
+
+    // Fetch Wise rate using their v3/quotes API
+    try {
+      const r = await fetch('https://api.transferwise.com/v3/quotes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceCurrency: 'INR',
+          targetCurrency: currency,
+          targetAmount: String(amt),
+        }),
+      });
+      const data = await r.json();
+      if (data.paymentOptions) {
+        const best = data.paymentOptions.find(p => p.payIn === 'BANK_TRANSFER') || data.paymentOptions[0];
+        if (best) {
+          const baseFees = best.fee?.total ?? 0;
+          const gst = baseFees * 0.18;
+          const totalFees = +(baseFees + gst).toFixed(2);
+          competitors.wise = { 
+            total: +(best.sourceAmount + gst).toFixed(2),
+            fees: totalFees
+          };
+        }
       }
     } catch (e) {}
 
@@ -97,9 +112,14 @@ module.exports = async (req, res) => {
       const item = data.result?.[0];
       if (item && midRate) {
         const rate = parseFloat(item.rate);
-        const total = +(rate * amt).toFixed(2);
         const inrBase = midRate * amt;
-        competitors.bookmyforex = { total, fees: total - inrBase };
+        const baseFees = item.fee ?? 0;
+        const gst = baseFees * 0.18;
+        const totalFees = +(baseFees + gst).toFixed(2);
+        competitors.bookmyforex = { 
+          total: +(rate * amt + totalFees).toFixed(2),
+          fees: totalFees 
+        };
       }
     } catch (e) {}
 
@@ -111,10 +131,11 @@ module.exports = async (req, res) => {
     const zRate = midRate * (1 + cfg.markup);
     const zConv = zRate * amt;
     const zFees = +(zConv - inrBase + cfg.swift).toFixed(2);
-    const zTotal = +(inrBase + zFees).toFixed(2);
+    const zFeeswithGST = +(zFees * 1.18).toFixed(2);
+    const zTotal = +(inrBase + zFeeswithGST).toFixed(2);
 
     const filtered = [];
-    filtered.push({ provider: 'Zolve', fees: zFees, total: zTotal, isBest: true });
+    filtered.push({ provider: 'Zolve', fees: zFeeswithGST, total: zTotal, isBest: true });
 
     Object.keys(competitors).forEach(provider => {
       if (competitors[provider].total > zTotal) {

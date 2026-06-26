@@ -16,49 +16,35 @@ const PORT = 3001;
 app.post("/wise", async (req, res) => {
   const { targetCurrency = "USD", targetAmount = 1000 } = req.body;
   try {
-    // Step 1: Fetch mid-rate from FastForex
+    // Step 1: Get mid-market rate from Wise v3/quotes API
     let midMarketRate = null;
     try {
-      const ffKey = process.env.FASTFOREX_KEY;
-      if (ffKey) {
-        const quoteResponse = await fetch(
-          `https://api.fastforex.io/fetch-one?from=INR&to=${targetCurrency}&api_key=${ffKey}`
-        );
-        const quoteData = await quoteResponse.json();
-        if (quoteData.result && quoteData.result[targetCurrency]) {
-          midMarketRate = quoteData.result[targetCurrency];
-        }
+      const quoteResponse = await fetch("https://api.transferwise.com/v3/quotes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sourceCurrency: "INR",
+          targetCurrency,
+          targetAmount: String(targetAmount),
+        }),
+      });
+      const quoteData = await quoteResponse.json();
+      if (quoteData.rate) {
+        midMarketRate = 1 / quoteData.rate; // Convert to INR per target currency
       }
     } catch (e) {
-      console.error("Failed to get mid-market rate from FastForex:", e.message);
-    }
-
-    // Fallback to Wise if FastForex fails
-    if (!midMarketRate) {
-      try {
-        const quoteResponse = await fetch("https://api.transferwise.com/v3/quotes", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sourceCurrency: "INR",
-            targetCurrency,
-            targetAmount: String(targetAmount),
-          }),
-        });
-        const quoteData = await quoteResponse.json();
-        if (quoteData.rate) {
-          midMarketRate = 1 / quoteData.rate;
-        }
-      } catch (e) {
-        console.error("Failed to get mid-market rate from Wise:", e.message);
-      }
+      console.error("Failed to get mid-market rate:", e.message);
     }
 
     if (!midMarketRate) {
       return res.status(400).json({ error: "Could not fetch mid-market rate" });
     }
 
-    // Step 2: Query Wise v3/quotes API directly
+    // Step 2: Back-calculate send amount: sendAmount = targetAmount / (1 / midMarketRate)
+    // Add 0.08% buffer to match Wise's calculations
+    const sendAmount = Math.round(targetAmount * midMarketRate * 1.0008);
+
+    // Step 3: Query Wise v3/quotes API directly
     const r = await fetch('https://api.transferwise.com/v3/quotes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -92,6 +78,7 @@ app.post("/wise", async (req, res) => {
     }
     
     data.midMarketRate = midMarketRate;
+    data.calculatedSendAmount = sendAmount;
     
     res.json(data);
   } catch (err) {
@@ -186,21 +173,29 @@ app.get("/api/rates", async (req, res) => {
     let midRate = null;
     let competitors = {};
 
-    // Fetch mid-rate from FastForex for Zolve calculations
+    // Fetch WSFX rate as primary mid-market source for Zolve calculations
     try {
-      const ffKey = process.env.FASTFOREX_KEY;
-      if (ffKey) {
-        const r = await fetch(
-          `https://api.fastforex.io/fetch-one?from=INR&to=${currency}&api_key=${ffKey}`
-        );
-        const data = await r.json();
-        if (data.result && data.result[currency]) {
-          midRate = data.result[currency];
-        }
+      const params = new URLSearchParams({
+        product: "REMITTANCE",
+        sellType: "SELL",
+        travelingCurrency: currency,
+        requiredCurrency: currency,
+        requiredAmount: String(amt),
+        issuerCode: "HOTTISSUER",
+      });
+      const r = await fetch(`https://apimerged.wsfx.in/b2cCalculator?${params}`);
+      const data = await r.json();
+      if (data.requiredCurrencyRate) {
+        midRate = data.requiredCurrencyRate;
       }
-    } catch (e) {
-      console.error("FastForex error:", e.message);
-    }
+      const total = data.finalInrAmount;
+      if (total) {
+        const baseFees = total - midRate * amt;
+        const gst = baseFees * 0.18;
+        const totalFees = +(baseFees + gst).toFixed(2);
+        competitors.wsfx = { total: +(total + gst).toFixed(2), fees: totalFees };
+      }
+    } catch (e) {}
 
     // Fetch Wise rate
     try {
@@ -214,54 +209,12 @@ app.get("/api/rates", async (req, res) => {
         }),
       });
       const data = await r.json();
-      if (!midRate && data.rate) {
-        midRate = 1 / data.rate;
-      }
       const best = data.paymentOptions?.find(p => p.payIn === "BANK_TRANSFER") || data.paymentOptions?.[0];
       if (best) {
-        competitors.wise = { total: best.sourceAmount, fees: best.fee?.total ?? 0 };
-      }
-    } catch (e) {}
-
-    // Fetch WSFX rate and use its mid-market rate for Zolve calculation
-    try {
-      const params = new URLSearchParams({
-        product: "REMITTANCE",
-        sellType: "SELL",
-        travelingCurrency: currency,
-        requiredCurrency: currency,
-        requiredAmount: String(amt),
-        issuerCode: "HOTTISSUER",
-      });
-      const r = await fetch(`https://apimerged.wsfx.in/b2cCalculator?${params}`);
-      const data = await r.json();
-      if (data.requiredCurrencyRate) {
-        midRate = data.requiredCurrencyRate; // Use WSFX rate for Zolve
-      }
-      const total = data.finalInrAmount;
-      if (total) {
-        competitors.wsfx = { total, fees: data.charges };
-      }
-    } catch (e) {}
-
-    // Fetch WSFX rate
-    try {
-      const params = new URLSearchParams({
-        product: "REMITTANCE",
-        sellType: "SELL",
-        travelingCurrency: currency,
-        requiredCurrency: currency,
-        requiredAmount: String(amt),
-        issuerCode: "HOTTISSUER",
-      });
-      const r = await fetch(`https://apimerged.wsfx.in/b2cCalculator?${params}`, {
-        method: "GET",
-      });
-      const data = await r.json();
-      const total = data.finalInrAmount;
-      if (total && midRate) {
-        const inrBase = midRate * amt;
-        competitors.wsfx = { total, fees: total - inrBase };
+        const baseFees = best.fee?.total ?? 0;
+        const gst = baseFees * 0.18;
+        const totalFees = +(baseFees + gst).toFixed(2);
+        competitors.wise = { total: +(best.sourceAmount + gst).toFixed(2), fees: totalFees };
       }
     } catch (e) {}
 
@@ -291,9 +244,10 @@ app.get("/api/rates", async (req, res) => {
       const item = data.result?.[0];
       if (item && midRate) {
         const rate = parseFloat(item.rate);
-        const total = +(rate * amt).toFixed(2);
-        const inrBase = midRate * amt;
-        competitors.bookmyforex = { total, fees: total - inrBase };
+        const baseFees = item.fee ?? 0;
+        const gst = baseFees * 0.18;
+        const totalFees = +(baseFees + gst).toFixed(2);
+        competitors.bookmyforex = { total: +(rate * amt + totalFees).toFixed(2), fees: totalFees };
       }
     } catch (e) {}
 
@@ -305,11 +259,12 @@ app.get("/api/rates", async (req, res) => {
     const zRate = midRate * (1 + cfg.markup);
     const zConv = zRate * amt;
     const zFees = +(zConv - inrBase + cfg.swift).toFixed(2);
-    const zTotal = +(inrBase + zFees).toFixed(2);
+    const zFeeswithGST = +(zFees * 1.18).toFixed(2);
+    const zTotal = +(inrBase + zFeeswithGST).toFixed(2);
 
     // Filter: only return where Zolve is cheaper
     const filtered = [];
-    filtered.push({ provider: "Zolve", fees: zFees, total: zTotal, isBest: true });
+    filtered.push({ provider: "Zolve", fees: zFeeswithGST, total: zTotal, isBest: true });
 
     Object.keys(competitors).forEach(provider => {
       if (competitors[provider].total > zTotal) {
@@ -356,21 +311,29 @@ app.get("/api/comparison", async (req, res) => {
     let midRate = null;
     const players = {};
 
-    // Fetch mid-rate from FastForex for Zolve calculations
+    // Fetch WSFX rate as primary mid-market source for Zolve calculations
     try {
-      const ffKey = process.env.FASTFOREX_KEY;
-      if (ffKey) {
-        const r = await fetch(
-          `https://api.fastforex.io/fetch-one?from=INR&to=${currency}&api_key=${ffKey}`
-        );
-        const data = await r.json();
-        if (data.result && data.result[currency]) {
-          midRate = data.result[currency];
-        }
+      const params = new URLSearchParams({
+        product: "REMITTANCE",
+        sellType: "SELL",
+        travelingCurrency: currency,
+        requiredCurrency: currency,
+        requiredAmount: String(amt),
+        issuerCode: "HOTTISSUER",
+      });
+      const r = await fetch(`https://apimerged.wsfx.in/b2cCalculator?${params}`);
+      const data = await r.json();
+      if (data.requiredCurrencyRate) {
+        midRate = data.requiredCurrencyRate;
       }
-    } catch (e) {
-      console.error("FastForex error:", e.message);
-    }
+      const total = data.finalInrAmount;
+      if (total) {
+        const baseFees = total - midRate * amt;
+        const gst = baseFees * 0.18;
+        const totalFees = +(baseFees + gst).toFixed(2);
+        players.WSFX = { total: +(total + gst).toFixed(2), fees: totalFees };
+      }
+    } catch (e) {}
 
     // Fetch Wise rate
     try {
@@ -384,54 +347,12 @@ app.get("/api/comparison", async (req, res) => {
         }),
       });
       const data = await r.json();
-      if (!midRate && data.rate) {
-        midRate = 1 / data.rate;
-      }
       const best = data.paymentOptions?.find(p => p.payIn === "BANK_TRANSFER") || data.paymentOptions?.[0];
       if (best) {
-        players.Wise = { total: best.sourceAmount, fees: best.fee?.total ?? 0 };
-      }
-    } catch (e) {}
-
-    // Fetch WSFX rate and use its mid-market rate for Zolve calculation
-    try {
-      const params = new URLSearchParams({
-        product: "REMITTANCE",
-        sellType: "SELL",
-        travelingCurrency: currency,
-        requiredCurrency: currency,
-        requiredAmount: String(amt),
-        issuerCode: "HOTTISSUER",
-      });
-      const r = await fetch(`https://apimerged.wsfx.in/b2cCalculator?${params}`);
-      const data = await r.json();
-      if (data.requiredCurrencyRate) {
-        midRate = data.requiredCurrencyRate; // Use WSFX rate for Zolve
-      }
-      const total = data.finalInrAmount;
-      if (total) {
-        players.WSFX = { total, fees: data.charges };
-      }
-    } catch (e) {}
-
-    // Fetch WSFX rate
-    try {
-      const params = new URLSearchParams({
-        product: "REMITTANCE",
-        sellType: "SELL",
-        travelingCurrency: currency,
-        requiredCurrency: currency,
-        requiredAmount: String(amt),
-        issuerCode: "HOTTISSUER",
-      });
-      const r = await fetch(`https://apimerged.wsfx.in/b2cCalculator?${params}`, {
-        method: "GET",
-      });
-      const data = await r.json();
-      const total = data.finalInrAmount;
-      if (total && midRate) {
-        const inrBase = midRate * amt;
-        players.WSFX = { total, fees: total - inrBase };
+        const baseFees = best.fee?.total ?? 0;
+        const gst = baseFees * 0.18;
+        const totalFees = +(baseFees + gst).toFixed(2);
+        players.Wise = { total: +(best.sourceAmount + gst).toFixed(2), fees: totalFees };
       }
     } catch (e) {}
 
@@ -461,9 +382,43 @@ app.get("/api/comparison", async (req, res) => {
       const item = data.result?.[0];
       if (item && midRate) {
         const rate = parseFloat(item.rate);
-        const total = +(rate * amt).toFixed(2);
-        const inrBase = midRate * amt;
-        players.BookMyForex = { total, fees: total - inrBase };
+        const baseFees = item.fee ?? 0;
+        const gst = baseFees * 0.18;
+        const totalFees = +(baseFees + gst).toFixed(2);
+        players.BookMyForex = { total: +(rate * amt + totalFees).toFixed(2), fees: totalFees };
+      }
+    } catch (e) {}
+
+    // Fetch BookMyForex rate
+    try {
+      const r = await fetch("https://www.bookmyforex.com/api/secure/v1/get-products-rates", {
+        method: "POST",
+        headers: {
+          accept: "application/json, text/plain, */*",
+          "accept-language": "en-GB,en-US;q=0.9,en;q=0.8",
+          "content-type": "application/json",
+          origin: "https://www.bookmyforex.com",
+          referer: "https://www.bookmyforex.com/forex/",
+          "user-agent": "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36",
+        },
+        body: JSON.stringify([
+          {
+            index: "form",
+            product_code: "TT",
+            currency_code: currency,
+            order_type: "R",
+            city: "BNG",
+          },
+        ]),
+      });
+      const data = await r.json();
+      const item = data.result?.[0];
+      if (item && midRate) {
+        const rate = parseFloat(item.rate);
+        const baseFees = item.fee ?? 0;
+        const gst = baseFees * 0.18;
+        const totalFees = +(baseFees + gst).toFixed(2);
+        players.BookMyForex = { total: +(rate * amt + totalFees).toFixed(2), fees: totalFees };
       }
     } catch (e) {}
 
@@ -475,8 +430,9 @@ app.get("/api/comparison", async (req, res) => {
     const zRate = midRate * (1 + cfg.markup);
     const zConv = zRate * amt;
     const zFees = +(zConv - inrBase + cfg.swift).toFixed(2);
-    const zTotal = +(inrBase + zFees).toFixed(2);
-    players.Zolve = { total: zTotal, fees: zFees };
+    const zFeeswithGST = +(zFees * 1.18).toFixed(2);
+    const zTotal = +(inrBase + zFeeswithGST).toFixed(2);
+    players.Zolve = { total: zTotal, fees: zFeeswithGST };
 
     res.json({
       currency,
