@@ -540,7 +540,7 @@
       const raw = await r.json();
       if (raw.midRate) midRate = raw.midRate;
       
-      // Extract all provider rates from the API response
+      // Extract all provider rates from the API response (already include 18% GST from API)
       raw.rates?.forEach(rate => {
         if (rate.provider === 'Wise') { wiseTotal = rate.total; wiseFees = rate.fees; }
         if (rate.provider === 'Wsfx') { wsfxTotal = rate.total; wsfxFees = rate.fees; }
@@ -561,17 +561,23 @@
     // Zolve calculation: base + markup
     const zRate = midRate * (1 + cfg.markup);
     const zConv = zRate * amount;
-    const zFees = +(zConv - inrBase + cfg.swift).toFixed(2);
+    const zBaseFees = +(zConv - inrBase + cfg.swift).toFixed(2);
+    const zGST = +(zBaseFees * 0.18).toFixed(2);
+    const zFees = +(zBaseFees + zGST).toFixed(2);
     const zTotal = +(inrBase + zFees).toFixed(2);
 
     const etSlab = ET_SLABS.find(s => inrBase <= s.uptoINR);
     const etPercentFees = +(inrBase * etSlab.pct).toFixed(2);
-    const etFees = Math.max(etPercentFees, 2000);
+    const etBaseFees = Math.max(etPercentFees, 2000);
+    const etGST = +(etBaseFees * 0.18).toFixed(2);
+    const etFees = +(etBaseFees + etGST).toFixed(2);
     const etTotal = +(inrBase + etFees).toFixed(2);
 
     const FLYWIRE_FEE = 0.020;
     const flywirePercentFees = +(inrBase * FLYWIRE_FEE).toFixed(2);
-    const flywireFees = Math.max(flywirePercentFees, 2500);
+    const flywireBaseFees = Math.max(flywirePercentFees, 2500);
+    const flywireGST = +(flywireBaseFees * 0.18).toFixed(2);
+    const flywireFees = +(flywireBaseFees + flywireGST).toFixed(2);
     const flywireTotal = +(inrBase + flywireFees).toFixed(2);
 
     const players = [
