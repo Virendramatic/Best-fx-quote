@@ -133,8 +133,22 @@ module.exports = async (req, res) => {
     const inrBase = midRate * amt;
     const zRate = midRate * (1 + cfg.markup);
     const zConv = zRate * amt;
-    const zFees = +(zConv - inrBase + cfg.swift).toFixed(2);
-    const zFeeswithGST = +(zFees * 1.18).toFixed(2);
+    
+    // Calculate tiered service value
+    let serviceValue;
+    if (zConv <= 100000) {
+      serviceValue = Math.max(250, zConv * 0.01);
+    } else if (zConv <= 1000000) {
+      serviceValue = 1000 + (zConv - 100000) * 0.005;
+    } else {
+      serviceValue = 5500 + (zConv - 1000000) * 0.001;
+    }
+    serviceValue = Math.min(60000, serviceValue);
+    
+    const baseFees = +(serviceValue + cfg.swift).toFixed(2);
+    const gst = +(baseFees * 0.18).toFixed(2);
+    const forexFees = +(zConv - inrBase).toFixed(2);
+    const zFeeswithGST = +(forexFees + cfg.swift + gst).toFixed(2);
     const zTotal = +(inrBase + zFeeswithGST).toFixed(2);
 
     // Return ALL providers (not filtered)

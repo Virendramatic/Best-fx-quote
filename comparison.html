@@ -558,12 +558,26 @@
 
     const cfg = getCfg(cur);
     
-    // Zolve calculation: base + markup
+    // Zolve calculation
+    const inrBase = midRate * amount;
     const zRate = midRate * (1 + cfg.markup);
     const zConv = zRate * amount;
-    const zBaseFees = +(zConv - inrBase + cfg.swift).toFixed(2);
-    const zGST = +(zBaseFees * 0.18).toFixed(2);
-    const zFees = +(zBaseFees + zGST).toFixed(2);
+    
+    // Calculate tiered service value
+    let serviceValue;
+    if (zConv <= 100000) {
+      serviceValue = Math.max(250, zConv * 0.01);
+    } else if (zConv <= 1000000) {
+      serviceValue = 1000 + (zConv - 100000) * 0.005;
+    } else {
+      serviceValue = 5500 + (zConv - 1000000) * 0.001;
+    }
+    serviceValue = Math.min(60000, serviceValue);
+    
+    const baseFees = +(serviceValue + cfg.swift).toFixed(2);
+    const gst = +(baseFees * 0.18).toFixed(2);
+    const forexFees = +(zConv - inrBase).toFixed(2);
+    const zFees = +(forexFees + cfg.swift + gst).toFixed(2);
     const zTotal = +(inrBase + zFees).toFixed(2);
 
     const etSlab = ET_SLABS.find(s => inrBase <= s.uptoINR);

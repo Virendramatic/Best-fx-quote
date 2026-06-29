@@ -158,11 +158,22 @@ app.get("/api/rates", async (req, res) => {
   const { currency = "USD", amount = 10000 } = req.query;
   
   const ZOLVE_CFG = {
-    USD: { markup: 0.0040, swift: 899 },
-    GBP: { markup: 0.0030, swift: 1499 },
-    EUR: { markup: 0.0030, swift: 1299 },
-    AUD: { markup: 0.0040, swift: 1299 },
-    CAD: { markup: 0.0040, swift: 1299 },
+    USD: { markup: 0.0035, swift: 899 },
+    EUR: { markup: 0.0035, swift: 1399 },
+    GBP: { markup: 0.0035, swift: 1499 },
+    AUD: { markup: 0.0035, swift: 1399 },
+    CAD: { markup: 0.0035, swift: 1399 },
+    AED: { markup: 0.0100, swift: 1399 },
+    SAR: { markup: 0.0200, swift: 1399 },
+    DKK: { markup: 0.0150, swift: 1399 },
+    NOK: { markup: 0.0150, swift: 1399 },
+    SEK: { markup: 0.0150, swift: 1399 },
+    NZD: { markup: 0.0100, swift: 1399 },
+    SGD: { markup: 0.0070, swift: 1399 },
+    HKD: { markup: 0.0150, swift: 1399 },
+    ZAR: { markup: 0.0150, swift: 1399 },
+    JPY: { markup: 0.1200, swift: 1399 },
+    CHF: { markup: 0.0100, swift: 1399 },
     DEFAULT: { markup: 0.0100, swift: 1499 },
   };
 
@@ -258,8 +269,22 @@ app.get("/api/rates", async (req, res) => {
     const inrBase = midRate * amt;
     const zRate = midRate * (1 + cfg.markup);
     const zConv = zRate * amt;
-    const zFees = +(zConv - inrBase + cfg.swift).toFixed(2);
-    const zFeeswithGST = +(zFees * 1.18).toFixed(2);
+    
+    // Calculate tiered service value
+    let serviceValue;
+    if (zConv <= 100000) {
+      serviceValue = Math.max(250, zConv * 0.01);
+    } else if (zConv <= 1000000) {
+      serviceValue = 1000 + (zConv - 100000) * 0.005;
+    } else {
+      serviceValue = 5500 + (zConv - 1000000) * 0.001;
+    }
+    serviceValue = Math.min(60000, serviceValue);
+    
+    const baseFees = +(serviceValue + cfg.swift).toFixed(2);
+    const gstAmount = +(baseFees * 0.18).toFixed(2);
+    const forexFees = +(zConv - inrBase).toFixed(2);
+    const zFeeswithGST = +(forexFees + cfg.swift + gstAmount).toFixed(2);
     const zTotal = +(inrBase + zFeeswithGST).toFixed(2);
 
     // Filter: only return where Zolve is cheaper
@@ -296,11 +321,22 @@ app.get("/api/comparison", async (req, res) => {
   const { currency = "USD", amount = 10000 } = req.query;
 
   const ZOLVE_CFG = {
-    USD: { markup: 0.0040, swift: 899 },
-    GBP: { markup: 0.0030, swift: 1499 },
-    EUR: { markup: 0.0030, swift: 1299 },
-    AUD: { markup: 0.0040, swift: 1299 },
-    CAD: { markup: 0.0040, swift: 1299 },
+    USD: { markup: 0.0035, swift: 899 },
+    EUR: { markup: 0.0035, swift: 1399 },
+    GBP: { markup: 0.0035, swift: 1499 },
+    AUD: { markup: 0.0035, swift: 1399 },
+    CAD: { markup: 0.0035, swift: 1399 },
+    AED: { markup: 0.0100, swift: 1399 },
+    SAR: { markup: 0.0200, swift: 1399 },
+    DKK: { markup: 0.0150, swift: 1399 },
+    NOK: { markup: 0.0150, swift: 1399 },
+    SEK: { markup: 0.0150, swift: 1399 },
+    NZD: { markup: 0.0100, swift: 1399 },
+    SGD: { markup: 0.0070, swift: 1399 },
+    HKD: { markup: 0.0150, swift: 1399 },
+    ZAR: { markup: 0.0150, swift: 1399 },
+    JPY: { markup: 0.1200, swift: 1399 },
+    CHF: { markup: 0.0100, swift: 1399 },
     DEFAULT: { markup: 0.0100, swift: 1499 },
   };
 
@@ -429,8 +465,22 @@ app.get("/api/comparison", async (req, res) => {
     const inrBase = midRate * amt;
     const zRate = midRate * (1 + cfg.markup);
     const zConv = zRate * amt;
-    const zFees = +(zConv - inrBase + cfg.swift).toFixed(2);
-    const zFeeswithGST = +(zFees * 1.18).toFixed(2);
+    
+    // Calculate tiered service value
+    let serviceValue;
+    if (zConv <= 100000) {
+      serviceValue = Math.max(250, zConv * 0.01);
+    } else if (zConv <= 1000000) {
+      serviceValue = 1000 + (zConv - 100000) * 0.005;
+    } else {
+      serviceValue = 5500 + (zConv - 1000000) * 0.001;
+    }
+    serviceValue = Math.min(60000, serviceValue);
+    
+    const baseFees = +(serviceValue + cfg.swift).toFixed(2);
+    const gst = +(baseFees * 0.18).toFixed(2);
+    const forexFees = +(zConv - inrBase).toFixed(2);
+    const zFeeswithGST = +(forexFees + cfg.swift + gst).toFixed(2);
     const zTotal = +(inrBase + zFeeswithGST).toFixed(2);
     players.Zolve = { total: zTotal, fees: zFeeswithGST };
 
