@@ -404,7 +404,6 @@
   function fmt(n) { if (n == null) return '—'; return Math.round(n).toLocaleString('en-IN'); }
   function fmtR(n) { if (n == null) return '—'; return Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
   function setCur(cur) { return { USD: '$', EUR: '€', GBP: '£', AUD: 'A$', CAD: 'C$', AED: 'د.إ', SAR: '﷼', DKK: 'kr', NOK: 'kr', SEK: 'kr', NZD: 'NZ$', SGD: 'S$', HKD: 'HK$', ZAR: 'R', JPY: '¥', CHF: 'CHF' }[cur] || cur; }
-  function setSt(m) { document.getElementById('st').textContent = m; }
   
   function updateCurrencySymbol() {
     const cur = document.getElementById('cur').value;
@@ -553,8 +552,6 @@
       document.getElementById('gobtn').disabled = false;
       return;
     }
-
-    const inrBase = midRate * amount;
 
     const cfg = getCfg(cur);
     
